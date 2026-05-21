@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinéclub — Film Recommendations</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+
+<!--
+════════════════════════════════════════════════════════════════════
+  GOOGLE APPS SCRIPT — paste this into Extensions → Apps Script
+════════════════════════════════════════════════════════════════════
+
+  Your Google Sheet needs ONE tab called "Films" with these headers:
+  title | director | year | genre | rating | synopsis | link | colour
+
+  Example row:
+  Parasite | Bong Joon-ho | 2019 | Thriller | 5 | A darkly comic... | https://... | #2C4A3E
+
+  Then deploy as a Web App (Execute as: Me, Anyone can access)
+  and paste the URL into APPS_SCRIPT_URL below.
+
+────────────────────────────────────────────────────────────────────
+
+function doGet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var s  = ss.getSheetByName('Films');
+  var data    = s.getDataRange().getValues();
+  var headers = data[0];
+  var rows    = data.slice(1);
+
+  var films = rows.filter(function(r) {
+    return r[0] !== '';
+  }).map(function(r) {
+    var obj = {};
+    headers.forEach(function(h, i) { obj[h] = r[i]; });
+    return obj;
+  });
+
+  return ContentService
+    .createTextOutput(JSON.stringify({ films: films }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+════════════════════════════════════════════════════════════════════
+-->
+
+<style>
+:root {
+  --ink:     #0E0E0E;
+  --paper:   #F5F0E8;
+  --cream:   #EDE8DC;
+  --gold:    #C9A84C;
+  --gold-lt: #F0E5C5;
+  --muted:   #6B6456;
+  --border:  rgba(14,14,14,0.12);
+  --r:       10px;
+  --t:       0.22s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--ink);
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 22px;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}
+
+.header-meta {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── HERO ── */
+.hero {
+  background: var(--ink);
+  padding: 64px 40px 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '🎬';
+  position: absolute;
+  right: 60px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 140px;
+  opacity: 0.04;
+  pointer-events: none;
+}
+
+.hero-eyebrow {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-eyebrow::before {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 1px;
+  background: var(--gold);
+}
+
+.hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(36px, 5vw, 58px);
+  color: white;
+  line-height: 1.15;
+  margin-bottom: 16px;
+  max-width: 640px;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.hero-sub {
+  font-size: 15px;
+  color: rgba(255,255,255,0.5);
+  max-width: 440px;
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 32px;
+}
+
+.stat-n {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  color: white;
+  display: block;
+}
+
+.stat-l {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── FILTERS ── */
+.filters-bar {
+  background: var(--cream);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 40px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 64px;
+  z-index: 90;
+}
+
+.filter-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.chip {
+  font-size: 12px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--muted);
+  cursor: pointer;
+  transition: var(--t);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.chip:hover { border-color: var(--ink); color: var(--ink); }
+.chip.active { background: var(--ink); border-color: var(--ink); color: white; }
+
+.search-wrap {
+  margin-left: auto;
+  position: relative;
+}
+
+.search-wrap input {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  padding: 6px 14px 6px 34px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: white;
+  color: var(--ink);
+  width: 200px;
+  outline: none;
+  transition: var(--t);
+}
+
+.search-wrap input:focus { border-color: var(--ink); width: 240px; }
+.search-wrap input::placeholder { color: var(--muted); }
+
+.search-ico {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+/* ── GRID ── */
+.grid-wrap {
+  padding: 36px 40px 60px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.grid-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-meta strong { color: var(--ink); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* ── CARD ── */
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  cursor: pointer;
+  transition: var(--t);
+  animation: fadeUp 0.4s ease both;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(14,14,14,0.10);
+  border-color: rgba(14,14,14,0.22);
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-band {
+  height: 6px;
+}
+
+.card-body {
+  padding: 18px 20px 16px;
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.card-genre {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  background: var(--cream);
+  padding: 3px 9px;
+  border-radius: 20px;
+}
+
+.card-rating {
+  display: flex;
+  gap: 2px;
+}
+
+.star {
+  font-size: 11px;
+  color: #DDD;
+  transition: var(--t);
+}
+.star.on { color: var(--gold); }
+
+.card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  color: var(--ink);
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+
+.card-director {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.card-director span {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.card-synopsis {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.65;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-year {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.card-link {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  transition: var(--t);
+}
+
+.card-link:hover {
+  background: var(--ink);
+  color: white;
+  border-color: var(--ink);
+}
+
+/* ── EMPTY ── */
+.empty {
+  grid-column: 1/-1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+.empty-ico { font-size: 36px; margin-bottom: 12px; }
+.empty-msg { font-size: 14px; }
+
+/* ── LOADING ── */
+.loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 16px;
+  grid-column: 1/-1;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-txt {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ── ERROR BANNER ── */
+.error-banner {
+  display: none;
+  background: #FEF3E2;
+  border-bottom: 2px solid var(--gold);
+  padding: 10px 40px;
+  font-size: 13px;
+  color: #7A5A10;
+  align-items: center;
+  gap: 10px;
+}
+
+.error-banner.show { display: flex; }
+
+/* ── FOOTER ── */
+footer {
+  background: var(--ink);
+  padding: 24px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footer-logo {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 16px;
+  color: var(--gold);
+}
+
+.footer-note {
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+}
+
+.data-source {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ds-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4CAF50;
+  animation: pulse 2s ease infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+</style>
+</head>
+<body>
+
+<div class="error-banner" id="error-banner">
+  ⚠️ Could not load films from Google Sheets — showing demo data instead.
+  <button onclick="this.closest('.error-banner').classList.remove('show')"
+    style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:13px;color:#7A5A10;font-weight:500">
+    Dismiss ×
+  </button>
+</div>
+
+<header>
+  <div class="logo">Cinéclub</div>
+  <div class="header-meta">Powered by Google Sheets</div>
+</header>
+
+<section class="hero">
+  <div class="hero-eyebrow">Curated film recommendations</div>
+  <h1>Films worth<br><em>your time.</em></h1>
+  <p class="hero-sub">A live collection updated directly from a Google Sheet. No code needed to add a new film — just fill in a row.</p>
+  <div class="hero-stats">
+    <div>
+      <span class="stat-n" id="stat-total">—</span>
+      <span class="stat-l">Films</span>
+    </div>
+    <div>
+      <span class="stat-n" id="stat-genres">—</span>
+      <span class="stat-l">Genres</span>
+    </div>
+    <div>
+      <span class="stat-n" id="stat-avg">—</span>
+      <span class="stat-l">Avg rating</span>
+    </div>
+  </div>
+</section>
+
+<div class="filters-bar">
+  <span class="filter-label">Genre</span>
+  <div id="genre-chips"></div>
+  <div class="search-wrap">
+    <span class="search-ico">🔍</span>
+    <input type="text" id="search" placeholder="Search films…" oninput="render()">
+  </div>
+</div>
+
+<div class="grid-wrap">
+  <div class="grid-meta" id="grid-meta"></div>
+  <div class="grid" id="grid">
+    <div class="loading-wrap">
+      <div class="spinner"></div>
+      <div class="loading-txt">Loading films from Google Sheets…</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-logo">Cinéclub</div>
+  <div class="data-source">
+    <div class="ds-dot" id="ds-dot"></div>
+    <span id="ds-label">Connecting to Google Sheets…</span>
+  </div>
+  <div class="footer-note">Add a row to the Sheet — it appears here instantly.</div>
+</footer>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+// Paste your Apps Script Web App URL here:
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwHr4oNlIzUUoTslFUbh0Mv_1cZDQIqsGEVdGMOfoKRlkOmpnazQ6sooxxHorIE3BQz/exec';
+
+// ── DEMO DATA (used if no URL set or fetch fails) ─────────────────────────────
+const DEMO_FILMS = [
+  { title:'Parasite',        director:'Bong Joon-ho',    year:2019, genre:'Thriller',  rating:5, synopsis:'A darkly comic masterpiece about class inequality. A poor family schemes to become employed by a wealthy household, with increasingly sinister consequences.', link:'https://www.imdb.com/title/tt6751668/', colour:'#2C4A3E' },
+  { title:'Past Lives',      director:'Celine Song',     year:2023, genre:'Romance',   rating:5, synopsis:'Two childhood sweethearts reunite in New York two decades later. A quiet, devastating meditation on love, migration, and the lives not lived.', link:'https://www.imdb.com/title/tt13238346/', colour:'#3A4A6E' },
+  { title:'The Holdovers',   director:'Alexander Payne', year:2023, genre:'Drama',     rating:4, synopsis:'A curmudgeonly teacher, a grieving cook, and a troubled student are stranded at a New England boarding school over the Christmas holidays.', link:'https://www.imdb.com/title/tt14849194/', colour:'#5A3A2A' },
+  { title:'All of Us Strangers', director:'Andrew Haigh', year:2023, genre:'Drama',   rating:5, synopsis:'A screenwriter forms an unexpected connection with his only neighbour, while the ghosts of his parents — dead for thirty years — appear at his childhood home.', link:'https://www.imdb.com/title/tt21067116/', colour:'#1A2E4A' },
+  { title:'Aftersun',        director:'Charlotte Wells', year:2022, genre:'Drama',     rating:5, synopsis:'A woman revisits a holiday she took with her father as a child, piecing together who he was through half-remembered moments. Quietly devastating.', link:'https://www.imdb.com/title/tt19770238/', colour:'#4A3A1A' },
+  { title:'Oppenheimer',     director:'Christopher Nolan', year:2023, genre:'Thriller', rating:4, synopsis:'The story of J. Robert Oppenheimer and the Manhattan Project. An overwhelming sensory experience and one of Nolan\'s finest.', link:'https://www.imdb.com/title/tt15398776/', colour:'#2A1A0A' },
+  { title:'Tár',             director:'Todd Field',      year:2022, genre:'Drama',     rating:5, synopsis:'Cate Blanchett gives a career-defining performance as a celebrated conductor whose carefully constructed life begins to unravel.', link:'https://www.imdb.com/title/tt14444726/', colour:'#1A1A2A' },
+  { title:'The Zone of Interest', director:'Jonathan Glazer', year:2023, genre:'Drama', rating:5, synopsis:'The commandant of Auschwitz and his wife build their dream life in a house next to the camp. Horror through deliberate mundanity.', link:'https://www.imdb.com/title/tt7160372/', colour:'#2A3A1A' },
+  { title:'Poor Things',     director:'Yorgos Lanthimos', year:2023, genre:'Comedy',  rating:4, synopsis:'A young woman brought back to life by an eccentric scientist explores the world — unbound by convention — in this gleefully anarchic fairy tale.', link:'https://www.imdb.com/title/tt14230458/', colour:'#4A1A3A' },
+  { title:'Showing Up',      director:'Kelly Reichardt',  year:2022, genre:'Comedy',  rating:4, synopsis:'A sculptor preparing for an exhibition navigates the minor frustrations and frictions of everyday life. Tender, funny, and quietly radical.', link:'https://www.imdb.com/title/tt14358712/', colour:'#3A3A1A' },
+  { title:'The Banshees of Inisherin', director:'Martin McDonagh', year:2022, genre:'Comedy', rating:5, synopsis:'On a small Irish island, a man is inexplicably told by his lifelong friend that their friendship is over. An allegory for something much larger.', link:'https://www.imdb.com/title/tt11813216/', colour:'#1A3A4A' },
+  { title:'Anatomy of a Fall', director:'Justine Triet', year:2023, genre:'Thriller', rating:5, synopsis:'A woman is accused of murdering her husband after his body is found beneath their chalet. A gripping courtroom thriller about truth and narrative.', link:'https://www.imdb.com/title/tt17009710/', colour:'#3A2A1A' },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let films       = [];
+let activeGenre = 'All';
+
+// ── BOOT ─────────────────────────────────────────────────────────────────────
+if (APPS_SCRIPT_URL && APPS_SCRIPT_URL !== 'YOUR_APPS_SCRIPT_URL_HERE') {
+  fetch(APPS_SCRIPT_URL)
+    .then(r => r.json())
+    .then(data => {
+      films = data.films || DEMO_FILMS;
+      setDataSource(true);
+      init();
+    })
+    .catch(() => {
+      document.getElementById('error-banner').classList.add('show');
+      films = DEMO_FILMS;
+      setDataSource(false);
+      init();
+    });
+} else {
+  // No URL set — use demo data
+  films = DEMO_FILMS;
+  setDataSource(null);
+  init();
+}
+
+function setDataSource(live) {
+  const dot   = document.getElementById('ds-dot');
+  const label = document.getElementById('ds-label');
+  if (live === true) {
+    dot.style.background = '#4CAF50';
+    label.textContent = 'Live — Google Sheets';
+  } else if (live === false) {
+    dot.style.background = '#F44336';
+    dot.style.animation = 'none';
+    label.textContent = 'Offline — showing demo data';
+  } else {
+    dot.style.background = '#FF9800';
+    dot.style.animation = 'none';
+    label.textContent = 'Demo mode — add your Apps Script URL to go live';
+  }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+function init() {
+  buildStats();
+  buildGenreChips();
+  render();
+}
+
+function buildStats() {
+  const genres = new Set(films.map(f => f.genre));
+  const avg    = (films.reduce((s,f) => s + Number(f.rating), 0) / films.length).toFixed(1);
+  document.getElementById('stat-total').textContent  = films.length;
+  document.getElementById('stat-genres').textContent = genres.size;
+  document.getElementById('stat-avg').textContent    = avg;
+}
+
+function buildGenreChips() {
+  const genres = ['All', ...new Set(films.map(f => f.genre)).values()].sort((a,b) => a==='All'?-1:a.localeCompare(b));
+  document.getElementById('genre-chips').innerHTML = genres.map(g =>
+    `<div class="chip${g===activeGenre?' active':''}" onclick="setGenre('${g}')">${g}</div>`
+  ).join('');
+}
+
+function setGenre(g) {
+  activeGenre = g;
+  buildGenreChips();
+  render();
+}
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+function render() {
+  const q       = document.getElementById('search').value.toLowerCase().trim();
+  const filtered = films.filter(f => {
+    const matchGenre = activeGenre === 'All' || f.genre === activeGenre;
+    const matchQ     = !q || f.title.toLowerCase().includes(q) ||
+                       f.director.toLowerCase().includes(q) ||
+                       (f.synopsis||'').toLowerCase().includes(q);
+    return matchGenre && matchQ;
+  });
+
+  document.getElementById('grid-meta').innerHTML =
+    `Showing <strong>${filtered.length}</strong> of <strong>${films.length}</strong> films`;
+
+  if (!filtered.length) {
+    document.getElementById('grid').innerHTML = `
+      <div class="empty">
+        <div class="empty-ico">🎞️</div>
+        <div class="empty-msg">No films match that search. Try a different term or genre.</div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('grid').innerHTML = filtered.map((f, i) => {
+    const colour = f.colour || '#333';
+    const stars  = Array.from({length:5}, (_,j) =>
+      `<span class="star${j < Number(f.rating)?' on':''}">★</span>`
+    ).join('');
+    const linkHtml = f.link
+      ? `<a class="card-link" href="${f.link}" target="_blank" rel="noopener">IMDB ↗</a>`
+      : `<span></span>`;
+    return `
+      <div class="card" style="animation-delay:${i*0.04}s">
+        <div class="card-band" style="background:${colour}"></div>
+        <div class="card-body">
+          <div class="card-top">
+            <span class="card-genre">${f.genre}</span>
+            <div class="card-rating">${stars}</div>
+          </div>
+          <div class="card-title">${f.title}</div>
+          <div class="card-director">${f.year} · <span>${f.director}</span></div>
+          <div class="card-synopsis">${f.synopsis || ''}</div>
+          <div class="card-foot">
+            <span class="card-year">${Number(f.rating)}/5</span>
+            ${linkHtml}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
